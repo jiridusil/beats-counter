@@ -43,8 +43,6 @@ const TRANSLATIONS = {
     numberOfRounds:  'Number of rounds',
     speed:           'Speed',
     pauseSettings:   'Pause Settings',
-    enablePause:     'Enable pause between rounds',
-    pauseEvery:      'Pause after every N rounds',
     pauseDuration:   'Pause duration (seconds)',
     start:           'Start',
     stop:            'Stop',
@@ -70,8 +68,6 @@ const TRANSLATIONS = {
     numberOfRounds:  'Počet kol',
     speed:           'Rychlost',
     pauseSettings:   'Nastavení pauzy',
-    enablePause:     'Povolit pauzu mezi koly',
-    pauseEvery:      'Pauza po každých N kolech',
     pauseDuration:   'Délka pauzy (sekundy)',
     start:           'Start',
     stop:            'Stop',
@@ -231,7 +227,6 @@ const inputBeats      = $('input-beats');
 const inputRounds     = $('input-rounds');
 const inputBpm        = $('input-bpm');
 const pauseSettingsEl = $('pause-settings');
-const inputPauseEvery = $('input-pause-every');
 const inputPauseDur   = $('input-pause-dur');
 
 const presetList      = $('preset-list');
@@ -253,7 +248,7 @@ function getSettings() {
     rounds:     Math.max(1, parseInt(inputRounds.value)     || 4),
     bpm:        Math.max(20, Math.min(300, parseInt(inputBpm.value) || 120)),
     pauseOn:    true,
-    pauseEvery: Math.max(1, parseInt(inputPauseEvery.value) || 1),
+    pauseEvery: 1,
     pauseDur:   Math.max(1, parseInt(inputPauseDur.value)   || 5),
   };
 }
@@ -308,7 +303,9 @@ function makePresetChip(p, i) {
 
   const beatsSpan = document.createElement('span');
   beatsSpan.className = 'preset-chip-beats';
-  beatsSpan.textContent = `${p.beats}b`;
+  beatsSpan.textContent = p.key === 'squatPause'
+    ? `${Math.max(1, parseInt(inputPauseDur.value) || 5)}s`
+    : `${p.beats}b`;
 
   chip.appendChild(nameSpan);
   chip.appendChild(beatsSpan);
@@ -529,6 +526,11 @@ btnReset.addEventListener('click', resetSession);
 
 inputBpm.addEventListener('input', () => {
   syncSettingsToPreset();
+});
+
+inputPauseDur.addEventListener('input', () => {
+  const chip = presetListPause.querySelector('.preset-chip-beats');
+  if (chip) chip.textContent = `${Math.max(1, parseInt(inputPauseDur.value) || 5)}s`;
 });
 
 // Save preset changes when beats/rounds fields change

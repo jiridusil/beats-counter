@@ -2,11 +2,11 @@
 
 // ── Preset defaults ────────────────────────────────────────────────────────
 const PRESET_DEFAULTS = [
-  { key: 'fwdLunge',   beats: 10, rounds: 1, bpm: 20 },
-  { key: 'sideStep',   beats: 10, rounds: 1, bpm: 20 },
-  { key: 'revLunge',   beats: 10, rounds: 1, bpm: 20 },
-  { key: 'floorTap',   beats: 10, rounds: 1, bpm: 20 },
-  { key: 'halfSquats', beats: 10, rounds: 1, bpm: 20 },
+  { key: 'fwdLunge',   beats: 12, rounds: 1, bpm: 34 },
+  { key: 'sideStep',   beats: 12, rounds: 1, bpm: 38 },
+  { key: 'revLunge',   beats: 10, rounds: 1, bpm: 32 },
+  { key: 'floorTap',   beats: 10, rounds: 1, bpm: 35 },
+  { key: 'halfSquats', beats: 18, rounds: 1, bpm: 65 },
   { key: 'squatPause', beats: 10, rounds: 1, bpm: 20 },
 ];
 

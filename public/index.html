@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beats Counter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header-row">
+      <h1 data-i18n="title">Beats Counter</h1>
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="cs">CZ</button>
+      </div>
+    </div>
+
+    <!-- Display -->
+    <div class="card display">
+      <div class="preset-name" id="preset-name" hidden></div>
+      <div class="round-info" id="round-info">Round 1 / 3</div>
+      <div class="beat-display" id="beat-display"></div>
+      <div class="status-label" id="status-label"></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="btn-start" data-i18n="start">Start</button>
+      <button id="btn-stop" data-i18n="stop">Stop</button>
+      <button id="btn-reset" data-i18n="reset">Reset</button>
+    </div>
+
+    <!-- Exercises + Settings -->
+    <div class="card">
+      <h2 data-i18n="presetsTitle">Exercises</h2>
+      <div class="preset-list" id="preset-list"></div>
+
+      <div class="settings-grid" style="margin-top: 16px;">
+        <div class="field">
+          <label for="input-beats" data-i18n="beatsPerRound">Beats per round</label>
+          <input type="number" id="input-beats" min="1" max="64" value="10" />
+        </div>
+        <div class="field">
+          <label for="input-rounds" data-i18n="numberOfRounds">Number of rounds</label>
+          <input type="number" id="input-rounds" min="1" max="99" value="3" />
+        </div>
+        <div class="field">
+          <label for="input-bpm" data-i18n="speed">Speed</label>
+          <input type="number" id="input-bpm" min="1" max="200" value="20" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause settings -->
+    <div class="card">
+      <h2 data-i18n="pauseSettings">Pause Settings</h2>
+      <div class="preset-list preset-list-pause" id="preset-list-pause"></div>
+
+      <div class="pause-settings" id="pause-settings">
+        <div class="field">
+          <label for="input-pause-every" data-i18n="pauseEvery">Pause after every N rounds</label>
+          <input type="number" id="input-pause-every" min="0" max="99" value="1" />
+        </div>
+        <div class="field">
+          <label for="input-pause-dur" data-i18n="pauseDuration">Pause duration (seconds)</label>
+          <input type="number" id="input-pause-dur" min="1" max="300" value="10" />
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

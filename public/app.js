@@ -562,6 +562,5 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 loadPresetsFromStorage();
-renderPresetChips();
-resetUI();
+loadPreset(0);
 btnStop.disabled = true;

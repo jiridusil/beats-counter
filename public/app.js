@@ -53,6 +53,8 @@ const TRANSLATIONS = {
     allDone:         'All done!',
     round:           'Round',
     pause:           'Pause',
+    letsStart:       "Let's start",
+    getReady:        'Get ready',
     presetsTitle:    'Exercises',
     halfSquats:      'Half Squats',
     revLunge:        'Squat+Rev Lunge',
@@ -78,6 +80,8 @@ const TRANSLATIONS = {
     allDone:         'Vše hotovo!',
     round:           'Kolo',
     pause:           'Pauza',
+    letsStart:       'Začínáme',
+    getReady:        'Připrav se',
     presetsTitle:    'Cvičení',
     halfSquats:      'Půl dřep',
     revLunge:        'Výpad vzad',
@@ -111,16 +115,12 @@ function applyTranslations() {
 
 // ── Audio ──────────────────────────────────────────────────────────────────
 
-function speakBeat(number) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(String(number));
-  utt.voice = getFemaleVoice();
-  utt.rate = 1.2;
-  utt.pitch = 1.1;
-  utt.volume = 1.0;
-  window.speechSynthesis.speak(utt);
-}
+const bgMusic = new Audio('pirates.mp3');
+bgMusic.loop   = true;
+bgMusic.volume = 0.35;
+
+function startMusic() { bgMusic.currentTime = 0; bgMusic.play().catch(() => {}); }
+function stopMusic()  { bgMusic.pause(); bgMusic.currentTime = 0; }
 
 let pauseCountdownIds = [];
 
@@ -130,32 +130,44 @@ function stopPauseAudio() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
 }
 
+let cachedFemaleVoice = null;
+
 function getFemaleVoice() {
+  if (cachedFemaleVoice) return cachedFemaleVoice;
   const voices = window.speechSynthesis.getVoices();
-  // Prefer known high-quality female voices, then any voice with 'female' hint
+  if (!voices.length) return null;
   const preferred = [
     'Microsoft Susan',
-    'Microsoft Zira', 
+    'Microsoft Zira',
     'Google US English',
-    'Tessa',   // macOS/iOS English
-    'Moira', 
-    'Karen', 
-    'Samantha', 
-    'Google UK English Female', 
+    'Tessa',
+    'Moira',
+    'Karen',
+    'Samantha',
+    'Google UK English Female',
   ];
   for (const name of preferred) {
     const v = voices.find(v => v.name.includes(name));
-    if (v) return v;
+    if (v) { cachedFemaleVoice = v; return v; }
   }
-  // Fallback: any voice with 'female' in the name
-  return voices.find(v => v.name.toLowerCase().includes('female')) || null;
+  const fallback = voices.find(v => v.name.toLowerCase().includes('female')) || null;
+  cachedFemaleVoice = fallback;
+  return fallback;
+}
+
+// Pre-load voices as soon as they're available
+if (window.speechSynthesis) {
+  window.speechSynthesis.addEventListener('voiceschanged', () => {
+    cachedFemaleVoice = null; // reset so next call re-picks from full list
+    getFemaleVoice();         // warm the cache
+  });
 }
 
 function speak(text) {
   if (!window.speechSynthesis) return;
   const utt = new SpeechSynthesisUtterance(String(text));
   utt.voice = getFemaleVoice();
-  utt.rate = 0.95;
+  utt.rate = 1.2;
   utt.pitch = 1.1;
   utt.volume = 1.0;
   window.speechSynthesis.speak(utt);
@@ -341,7 +353,8 @@ function scheduleNextBeat() {
 
   const s = getSettings();
   const interval = beatInterval(s.bpm);
-  speakBeat(state.currentBeat + 1);
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  speak(state.currentBeat + 1);
   renderDots(s.beats, state.currentBeat, 0);
   roundInfo.textContent = `${t('round')} ${state.currentRound} / ${s.rounds}`;
   statusLabel.textContent = '';
@@ -362,7 +375,8 @@ function scheduleNextBeat() {
         state.completedPresets.add(state.presetIndex);
         renderPresetChips();
 
-        if (s.pauseOn) {
+        const isLastPreset = nextIdx === presetData.length - 1;
+        if (s.pauseOn && !isLastPreset) {
           startPause(s.pauseDur, s.beats, () => {
             loadPreset(nextIdx);
             runSession();
@@ -405,14 +419,21 @@ function scheduleNextBeat() {
   }
 }
 
+const PRE_COUNTDOWN_MS = 2700; // 700ms last-beat + 2000ms gap before "Pause" word
+const POST_WORD_MS     = 2000; // gap after "Pause" word before countdown starts
+
 function startPause(durationSec, totalBeats, onComplete) {
   state.paused = true;
-  const totalMs = durationSec * 1000;
+  // Total wall-clock: pre-gap + "Pause" word gap + countdown + post-gap
+  const totalMs = PRE_COUNTDOWN_MS + POST_WORD_MS + durationSec * 1000 + 800;
   state.pauseStart = performance.now();
 
   renderDots(totalBeats, -1, totalBeats);
-  // Small delay so the last beat's spoken number finishes before countdown starts
-  setTimeout(() => playPauseAudio(durationSec), 700);
+  // 700ms for last beat to finish, +2s gap, say "Pause", +2s gap, then countdown
+  setTimeout(() => {
+    speak(t('pause'));
+    setTimeout(() => playPauseAudio(durationSec), 2000);
+  }, 2700);
 
   function updatePauseLabel() {
     if (!state.running) return;
@@ -435,6 +456,21 @@ function startPause(durationSec, totalBeats, onComplete) {
 }
 
 // ── Session runner ─────────────────────────────────────────────────────────
+function prepareAndStart() {
+  if (!state.running) return;
+  setStatus('getReady', 'pause');
+  // 2s silence → say "Let's start" → 2s silence → first beat
+  state.timeoutId = setTimeout(() => {
+    if (!state.running) return;
+    speak(t('letsStart'));
+    state.timeoutId = setTimeout(() => {
+      if (!state.running) return;
+      statusLabel.textContent = '';
+      scheduleNextBeat();
+    }, 1500);
+  }, 1500);
+}
+
 function runSession() {
   const s = getSettings();
   state.currentRound = 1;
@@ -448,7 +484,7 @@ function runSession() {
   statusLabel.textContent = '';
   updatePresetName();
   renderPresetChips();
-  scheduleNextBeat();
+  prepareAndStart();
 }
 
 // ── Controls ───────────────────────────────────────────────────────────────
@@ -456,6 +492,7 @@ function startSession() {
   state.running = true;
   state.paused = false;
   state.chainMode = state.presetIndex >= 0;
+  startMusic();
   runSession();
 }
 
@@ -466,6 +503,7 @@ function stopSession() {
   clearTimeout(state.timeoutId);
   clearTimeout(state.pauseTimeoutId);
   stopPauseAudio();
+  stopMusic();
   btnStart.textContent = t('start');
   btnStart.disabled = false;
   btnStop.disabled = true;

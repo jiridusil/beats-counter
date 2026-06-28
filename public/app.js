@@ -110,99 +110,64 @@ function applyTranslations() {
 }
 
 // ── Audio ──────────────────────────────────────────────────────────────────
-let audioCtx = null;
-let pauseOscillators = [];  // tracked so we can stop early on session stop
 
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+function speakBeat(number) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(String(number));
+  utt.voice = getFemaleVoice();
+  utt.rate = 1.2;
+  utt.pitch = 1.1;
+  utt.volume = 1.0;
+  window.speechSynthesis.speak(utt);
 }
 
-function playTick(isAccent = false) {
-  const ctx = getAudioCtx();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(isAccent ? 1200 : 800, ctx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(isAccent ? 600 : 400, ctx.currentTime + 0.04);
-  gain.gain.setValueAtTime(0.7, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.07);
-}
+let pauseCountdownIds = [];
 
 function stopPauseAudio() {
-  const ctx = audioCtx;
-  pauseOscillators.forEach(osc => {
-    try { osc.stop(ctx ? ctx.currentTime : 0); } catch (_) {}
-  });
-  pauseOscillators = [];
+  pauseCountdownIds.forEach(id => clearTimeout(id));
+  pauseCountdownIds = [];
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function getFemaleVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  // Prefer known high-quality female voices, then any voice with 'female' hint
+  const preferred = [
+    'Microsoft Susan',
+    'Microsoft Zira', 
+    'Google US English',
+    'Tessa',   // macOS/iOS English
+    'Moira', 
+    'Karen', 
+    'Samantha', 
+    'Google UK English Female', 
+  ];
+  for (const name of preferred) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) return v;
+  }
+  // Fallback: any voice with 'female' in the name
+  return voices.find(v => v.name.toLowerCase().includes('female')) || null;
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  const utt = new SpeechSynthesisUtterance(String(text));
+  utt.voice = getFemaleVoice();
+  utt.rate = 0.95;
+  utt.pitch = 1.1;
+  utt.volume = 1.0;
+  window.speechSynthesis.speak(utt);
 }
 
 function playPauseAudio(durationSec) {
-  const ctx = getAudioCtx();
-  const now = ctx.currentTime;
-  pauseOscillators = [];
-
-  // Master gain with fade-in and fade-out
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.001, now);
-  master.gain.linearRampToValueAtTime(0.18, now + 1.8);
-  master.gain.setValueAtTime(0.18, now + Math.max(1.8, durationSec - 1.5));
-  master.gain.linearRampToValueAtTime(0.001, now + durationSec - 0.15);
-  master.connect(ctx.destination);
-
-  // Soft A-minor pad: A3 C4 E4 A4, triangle waves with slight detune
-  const chordFreqs = [220, 261.63, 329.63, 440];
-  const detunes    = [+8, -6, +4, -8];
-  chordFreqs.forEach((freq, i) => {
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, now);
-    osc.detune.setValueAtTime(detunes[i], now);
-    gain.gain.setValueAtTime(0.22, now);
-    osc.connect(gain);
-    gain.connect(master);
-    osc.start(now);
-    osc.stop(now + durationSec);
-    pauseOscillators.push(osc);
-  });
-
-  // LFO breathing — very slow, ±0.04 gain swell
-  const lfo     = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  lfo.type = 'sine';
-  lfo.frequency.setValueAtTime(0.12, now);
-  lfoGain.gain.setValueAtTime(0.04, now);
-  lfo.connect(lfoGain);
-  lfoGain.connect(master.gain);
-  lfo.start(now);
-  lfo.stop(now + durationSec);
-  pauseOscillators.push(lfo);
-
-  // 3-2-1 countdown bell tones (only if pause is long enough)
-  if (durationSec >= 4) {
-    [
-      { offset: durationSec - 3, freq: 523.25 },  // C5
-      { offset: durationSec - 2, freq: 659.25 },  // E5
-      { offset: durationSec - 1, freq: 783.99 },  // G5
-    ].forEach(({ offset, freq }) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + offset);
-      gain.gain.setValueAtTime(0.001, now + offset);
-      gain.gain.linearRampToValueAtTime(0.55, now + offset + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.9);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + offset);
-      osc.stop(now + offset + 1.0);
-      pauseOscillators.push(osc);
-    });
+  stopPauseAudio();
+  // Speak each second: durationSec, durationSec-1, ..., 1, 0
+  for (let i = 0; i <= durationSec; i++) {
+    const number = durationSec - i;
+    const id = setTimeout(() => speak(number), i * 1000);
+    pauseCountdownIds.push(id);
   }
 }
 
@@ -376,9 +341,7 @@ function scheduleNextBeat() {
 
   const s = getSettings();
   const interval = beatInterval(s.bpm);
-  const isFirstBeat = state.currentBeat === 0;
-
-  playTick(isFirstBeat);
+  speakBeat(state.currentBeat + 1);
   renderDots(s.beats, state.currentBeat, 0);
   roundInfo.textContent = `${t('round')} ${state.currentRound} / ${s.rounds}`;
   statusLabel.textContent = '';
@@ -448,7 +411,8 @@ function startPause(durationSec, totalBeats, onComplete) {
   state.pauseStart = performance.now();
 
   renderDots(totalBeats, -1, totalBeats);
-  playPauseAudio(durationSec);
+  // Small delay so the last beat's spoken number finishes before countdown starts
+  setTimeout(() => playPauseAudio(durationSec), 700);
 
   function updatePauseLabel() {
     if (!state.running) return;
@@ -489,7 +453,6 @@ function runSession() {
 
 // ── Controls ───────────────────────────────────────────────────────────────
 function startSession() {
-  getAudioCtx();
   state.running = true;
   state.paused = false;
   state.chainMode = state.presetIndex >= 0;
